@@ -13,6 +13,8 @@ from .macro_engine import MacroEngine
 from .auth_rbac import AuthManager, Role
 from .logging_audit import AuditLogger
 from .utils import AdvancedNLUParser
+from .offline_gpt import LocalGPTAssistant
+from .scheduler import TaskScheduler
 
 __all__ = [
     'IntentRouter',
@@ -26,4 +28,6 @@ __all__ = [
     'Role',
     'AuditLogger',
     'AdvancedNLUParser',
+    'LocalGPTAssistant',
+    'TaskScheduler',
 ]
