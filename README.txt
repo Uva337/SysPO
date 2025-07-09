@@ -60,3 +60,31 @@
 При первом запуске будут созданы базы данных. Используйте следующие учетные данные для входа:
 * **Логин:** `admin`
 * **Пароль:** `password123`
+
+## Дополнительные возможности
+
+### Локальный GPT-Neo
+Модель GPT-Neo (125M) загружается из директории `models/gpt-neo-125M` с использованием
+библиотеки `transformers`. Пример использования:
+
+```python
+from offline_gpt import LocalGPTAssistant
+
+assistant = LocalGPTAssistant()
+answer = assistant.generate("Как изменить IP в Astra Linux?")
+print(answer)
+```
+
+### Планировщик задач
+Модуль `scheduler.TaskScheduler` позволяет планировать запуск команд во времени.
+Задания хранятся в `db/tasks.db` и автоматически выполняются в фоновом потоке.
+Пример добавления задачи:
+
+```python
+from datetime import datetime, timedelta
+from scheduler import TaskScheduler
+
+sched = TaskScheduler(poll_interval=30)
+sched.start()
+sched.add_task("echo Hello", datetime.now() + timedelta(minutes=1))
+```
