@@ -4,6 +4,7 @@
 """
 import base64
 import os
+import struct
 
 # Данные иконки (64x64, в формате PNG), закодированные в base64
 # Это иконка в виде стилизованного терминала
@@ -22,15 +23,24 @@ def create_app_icon_if_not_exists(filename="app_icon.ico"):
     try:
         # Для простоты сохраняем как PNG. Для настоящей .ico иконки
         # потребовалась бы библиотека вроде Pillow.
-        icon_filename = "app_icon.png"
-        if os.path.exists(icon_filename):
-            return
+        icon_png = "app_icon.png"
+        icon_ico = "icon.ico"
 
-        icon_data = base64.b64decode(ICON_B64)
-        with open(icon_filename, "wb") as f:
-            f.write(icon_data)
-        print(f"Application icon '{icon_filename}' created.")
-        return icon_filename
+        if not os.path.exists(icon_png):
+            icon_data = base64.b64decode(ICON_B64)
+            with open(icon_png, "wb") as f:
+                f.write(icon_data)
+            print(f"Application icon '{icon_png}' created.")
+
+        if not os.path.exists(icon_ico):
+            png_data = open(icon_png, "rb").read()
+            header = b"\x00\x00\x01\x00\x01\x00"
+            entry = struct.pack('<BBBBHHII', 64, 64, 0, 0, 1, 32, len(png_data), 22)
+            with open(icon_ico, "wb") as ico:
+                ico.write(header + entry + png_data)
+            print(f"Windows icon '{icon_ico}' created.")
+
+        return icon_png
     except Exception as e:
         print(f"Could not create application icon: {e}")
         return None

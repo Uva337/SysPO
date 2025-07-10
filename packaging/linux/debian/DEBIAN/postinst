@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+install -m 755 /usr/share/SysAdminAssistant/sysadmin-assistant /usr/bin/sysadmin-assistant || true
+cat >/etc/systemd/system/sysadmin-assistant.service <<'SERVICE'
+[Unit]
+Description=SysAdmin Assistant
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/sysadmin-assistant
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+systemctl daemon-reload
+systemctl enable --now sysadmin-assistant.service || true
+exit 0
+

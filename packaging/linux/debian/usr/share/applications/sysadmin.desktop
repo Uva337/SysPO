@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=SysAdmin Assistant
+Exec=sysadmin-assistant
+Icon=sysadmin
+Categories=System;Utility;
