@@ -106,3 +106,29 @@ packaging\windows\package_windows.bat
 ./packaging/linux/appimage/build_appimage.sh
 ```
 После выполнения будут созданы `.deb` и `.AppImage` в каталоге `packaging/linux/`.
+
+## Установка собранного приложения
+
+### Windows
+
+1. Запустите `packaging\windows\build_windows.bat` и затем `packaging\windows\package_windows.bat`.
+2. В каталоге `dist` появится папка `SysAdminAssistant-win`, а также архив `SysAdminAssistant-win.zip`.
+3. Распакуйте архив в удобное место и запустите `SysAdminAssistant.exe`.
+
+### Astra Linux / Debian
+
+1. С помощью `./packaging/linux/debian/build_deb.sh` соберите пакет `sysadmin-assistant_1.0.0_amd64.deb`.
+2. Установите пакет командой:
+   ```bash
+   sudo dpkg -i sysadmin-assistant_1.0.0_amd64.deb
+   ```
+3. После установки запустите приложение через меню или командой `sysadmin-assistant`.
+
+### Портативный AppImage
+
+1. Выполните `./packaging/linux/appimage/build_appimage.sh`.
+2. Полученный файл `SysAdminAssistant-1.0.0.AppImage` сделайте исполняемым и запустите:
+   ```bash
+   chmod +x SysAdminAssistant-1.0.0.AppImage
+   ./SysAdminAssistant-1.0.0.AppImage
+   ```
