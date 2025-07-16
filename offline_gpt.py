@@ -14,7 +14,9 @@ class LocalGPTAssistant:
     """Simple wrapper around GPT-Neo 125M for offline usage."""
 
     def __init__(self, model_dir: str = "models/gpt-neo-125M"):
-        self.model_dir = model_dir
+        # Allow overriding the model path via environment variable
+        env_dir = os.environ.get("GPT_NEO_PATH")
+        self.model_dir = env_dir or model_dir
         self.model: Optional[torch.nn.Module] = None
         self.tokenizer: Optional[AutoTokenizer] = None
 
@@ -23,9 +25,11 @@ class LocalGPTAssistant:
         if self.model is not None:
             return
         if not os.path.isdir(self.model_dir):
-            raise FileNotFoundError(
-                f"Model directory '{self.model_dir}' not found. Place the HF model there"
+            msg = (
+                f"Model directory '{self.model_dir}' not found. "
+                "Place the HF model there or set GPT_NEO_PATH environment variable."
             )
+            raise FileNotFoundError(msg)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_dir)
         self.model = AutoModelForCausalLM.from_pretrained(self.model_dir)
         self.model.eval()

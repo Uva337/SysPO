@@ -6,3 +6,4 @@ rapidfuzz==3.6.2
 psutil==5.9.8
 transformers==4.40.0
 torch==2.2.2
+numpy<2
