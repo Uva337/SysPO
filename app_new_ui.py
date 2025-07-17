@@ -45,6 +45,8 @@ from utils import AdvancedNLUParser
 from sysadmin_actions import execute_intent, SPECIAL_HANDLERS
 from macro_engine import MacroEngine
 from plugin_api import PluginManager
+from scheduler import TaskScheduler
+from chatops_ui import ChatOpsUI
 import icon
 from spinner import SpinnerWidget
 
@@ -157,7 +159,7 @@ CATEGORY_TRANSLATIONS = {
 }
 
 INTENT_ICONS = {
-    'dashboard': 'go-home', 'commands': 'go-jump', 'macros': 'view-media-playlist',
+    'dashboard': 'go-home', 'commands': 'go-jump', 'macros': 'view-media-playlist', 'chat': 'dialog-information',
     'network.get_ip_config': 'network-wired', 'network.ping': 'network-transmit-receive',
     'system.info': 'dialog-information', 'process.list': 'view-process-tree',
     'disk.usage': 'drive-harddisk', 'power.reboot': 'system-reboot',
@@ -418,7 +420,10 @@ class MainWindow(QMainWindow):
         self.nlu_parser = AdvancedNLUParser(self.command_templates)
         self.logger = AuditLogger()
         self.macro_engine = MacroEngine(self.run_execution_for_macro)
-        self.plugin_manager = PluginManager()
+        self.plugin_manager = PluginManager(app_context=self)
+        self.plugin_manager.load_plugins()
+        self.scheduler = TaskScheduler()
+        self.scheduler.start()
         self.favorites = self.load_favorites()
 
         self.current_intent = None
@@ -450,14 +455,17 @@ class MainWindow(QMainWindow):
         self.dashboard_page = self.create_dashboard_page()
         self.commands_page = self.create_commands_page()
         self.macros_page = self.create_macros_page()
+        self.chatops_page = self.create_chatops_page()
 
         self.main_stack.addWidget(self.dashboard_page)
         self.main_stack.addWidget(self.commands_page)
         self.main_stack.addWidget(self.macros_page)
+        self.main_stack.addWidget(self.chatops_page)
 
         self.add_nav_item("Быстрый запуск", 'dashboard', nav_list)
         self.add_nav_item("Команды", 'commands', nav_list)
         self.add_nav_item("Макросы", 'macros', nav_list)
+        self.add_nav_item("ChatOps", 'chat', nav_list)
 
         nav_list.currentRowChanged.connect(self.main_stack.setCurrentIndex)
         nav_list.setCurrentRow(0)
@@ -614,6 +622,8 @@ class MainWindow(QMainWindow):
 
         self.form_execute_button = AnimatedButton("Выполнить команду")
         self.form_execute_button.hide()
+        self.schedule_button = QPushButton("Запланировать")
+        self.schedule_button.hide()
 
         self.output_stack = QStackedWidget()
         self.output_console = QTextEdit()
@@ -625,6 +635,7 @@ class MainWindow(QMainWindow):
         right_layout.addLayout(nlu_layout)
         right_layout.addWidget(self.param_form_widget)
         right_layout.addWidget(self.form_execute_button)
+        right_layout.addWidget(self.schedule_button)
         right_layout.addStretch(1)
         right_layout.addWidget(self.output_stack, 5)
 
@@ -636,6 +647,7 @@ class MainWindow(QMainWindow):
         self.function_tree.itemClicked.connect(self.on_tree_item_clicked)
         self.nlu_input.returnPressed.connect(self.execute_from_nlu)
         self.form_execute_button.clicked.connect(self.execute_from_form)
+        self.schedule_button.clicked.connect(self.prompt_schedule_current)
         return page
 
     def create_macros_page(self):
@@ -666,6 +678,10 @@ class MainWindow(QMainWindow):
         save_btn.clicked.connect(self.save_macro)
         load_btn.clicked.connect(self.load_macro)
         play_btn.clicked.connect(lambda: self.macro_engine.play_macro(self.macro_engine.recorded_macro))
+        return page
+
+    def create_chatops_page(self):
+        page = ChatOpsUI()
         return page
 
     def populate_function_tree(self):
@@ -786,9 +802,11 @@ class MainWindow(QMainWindow):
                 widget.setToolTip(f"Параметр: {name}\nТип: {spec.type}")
                 self.param_widgets[name] = widget
         self.form_execute_button.show()
+        self.schedule_button.show()
 
     def clear_param_form(self):
         self.form_execute_button.hide()
+        self.schedule_button.hide()
         self.current_intent = None
         self.param_widgets.clear()
         while self.param_form_layout.count():
@@ -907,6 +925,17 @@ class MainWindow(QMainWindow):
         self.exec_worker.finished.connect(self.on_execution_finished)
         self.exec_thread.started.connect(self.exec_worker.run)
         self.exec_thread.start()
+
+    def prompt_schedule_current(self):
+        if not self.current_intent:
+            QMessageBox.information(self, "Нет команды", "Сначала выберите команду")
+            return
+        minutes, ok = QInputDialog.getInt(self, "Запланировать", "Через сколько минут выполнить?", 1, 1, 10080)
+        if ok:
+            run_time = datetime.datetime.now() + datetime.timedelta(minutes=minutes)
+            cmd = self.command_templates.render_command(self.current_intent, 'win' if os.name == 'nt' else 'astro', {name: w.text() if isinstance(w, QLineEdit) else w.currentText() for name, w in self.param_widgets.items()})
+            self.scheduler.add_task(cmd, run_time, repeat=False)
+            QMessageBox.information(self, "Задача добавлена", f"Команда будет выполнена {run_time}")
 
     def run_execution_for_macro(self, intent: str, params: dict):
         if self.exec_thread and self.exec_thread.isRunning():
@@ -1097,6 +1126,8 @@ class MainWindow(QMainWindow):
 
         self.logger.close()
         self.auth_manager.close()
+        if hasattr(self, 'scheduler'):
+            self.scheduler.stop()
         super().closeEvent(event)
 
 

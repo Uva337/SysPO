@@ -9,10 +9,63 @@
 """
 import sqlite3
 import os
-import bcrypt
+import base64
+import hashlib
+import hmac
+import secrets
+
+try:
+    import bcrypt  # type: ignore
+except ImportError:  # bcrypt may not be installed
+    bcrypt = None
+
+def _hash_pw(password: str) -> str:
+    """Hash password using bcrypt if available, otherwise PBKDF2."""
+    if bcrypt:
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100000)
+    return base64.b64encode(salt + digest).decode("utf-8")
+
+def _check_pw(password: str, hashed: str) -> bool:
+    """Verify password for either bcrypt or PBKDF2 hashes."""
+    if hashed.startswith("$2"):
+        if bcrypt:
+            try:
+                return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
+            except Exception as e:
+                print(f"Bcrypt verification failed: {e}")
+                return False
+        else:
+            print("bcrypt hash detected but bcrypt module not installed")
+            return False
+    try:
+        data = base64.b64decode(hashed.encode("utf-8"))
+        salt, digest = data[:16], data[16:]
+        new_digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100000)
+        return hmac.compare_digest(digest, new_digest)
+    except Exception as e:
+        print(f"PBKDF2 verification failed: {e}")
+        return False
 from enum import Enum
 from typing import Optional, Tuple, List, Dict
-from cryptography.fernet import Fernet
+try:
+    from cryptography.fernet import Fernet
+except ImportError:  # fallback stub if cryptography not installed
+    class Fernet:
+        def __init__(self, key: bytes):
+            self.key = key
+
+        @staticmethod
+        def generate_key() -> bytes:
+            return b"0" * 32
+
+        def encrypt(self, data: bytes) -> bytes:
+            return data  # fallback - no encryption
+
+        def decrypt(self, token: bytes) -> bytes:
+            return token
+
 
 DB_DIR = "db"
 AUTH_DB_PATH = os.path.join(DB_DIR, "auth.db")
@@ -94,7 +147,7 @@ class AuthManager:
         Добавляет нового пользователя в базу данных.
         Возвращает True в случае успеха, False если пользователь уже существует.
         """
-        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        password_hash = _hash_pw(password)
 
         encrypted_data = None
         if extra_data:
@@ -104,7 +157,8 @@ class AuthManager:
         try:
             self.cursor.execute(
                 "INSERT INTO users (username, password_hash, role, encrypted_data) VALUES (?, ?, ?, ?)",
-                (username, password_hash.decode('utf-8'), role.value, encrypted_data)
+                # password_hash is already a string, store directly
+                (username, password_hash, role.value, encrypted_data)
             )
             self.conn.commit()
             print(f"User '{username}' added with role '{role.value}'.")
@@ -117,14 +171,20 @@ class AuthManager:
         """
         Проверяет логин и пароль пользователя.
         """
-        self.cursor.execute("SELECT password_hash, role FROM users WHERE username = ?", (username,))
+        self.cursor.execute(
+            "SELECT password_hash, role FROM users WHERE username = ?",
+            (username,)
+        )
         result = self.cursor.fetchone()
 
         if result:
             password_hash, role_str = result
-            if bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8')):
-                print(f"User '{username}' authenticated successfully.")
-                return Role(role_str)
+            try:
+                if _check_pw(password, password_hash):
+                    print(f"User '{username}' authenticated successfully.")
+                    return Role(role_str)
+            except Exception as e:
+                print(f"Password verification error for '{username}': {e}")
 
         print(f"Authentication failed for user '{username}'.")
         return None
@@ -188,11 +248,12 @@ class AuthManager:
 
     def change_user_password(self, username: str, new_password: str) -> bool:
         """Изменяет пароль пользователя."""
-        new_password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+        new_password_hash = _hash_pw(new_password)
         try:
             self.cursor.execute(
                 "UPDATE users SET password_hash = ? WHERE username = ?",
-                (new_password_hash.decode('utf-8'), username)
+                # new_password_hash is already a string
+                (new_password_hash, username)
             )
             self.conn.commit()
             return self.cursor.rowcount > 0

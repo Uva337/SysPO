@@ -39,6 +39,8 @@
     pip install -r requirements.txt
     ```
     *Примечание: для `pymorphy2` может потребоваться загрузка словарей при первом использовании.*
+    Если при запуске возникает ошибка "A module that was compiled using NumPy 1.x",
+    убедитесь, что установлена версия `numpy<2` (она уже прописана в `requirements.txt`).
 
 3.  **Запустите приложение:**
     ```bash
@@ -60,3 +62,83 @@
 При первом запуске будут созданы базы данных. Используйте следующие учетные данные для входа:
 * **Логин:** `admin`
 * **Пароль:** `password123`
+
+## Дополнительные возможности
+
+### Локальный GPT-Neo
+Модель GPT-Neo (125M) загружается из директории `models/gpt-neo-125M` (или из каталога,
+указанного в переменной окружения `GPT_NEO_PATH`) с использованием
+библиотеки `transformers`. Если модель отсутствует, скачайте её с HuggingFace и
+расположите по указанному пути. Пример использования:
+
+```python
+from offline_gpt import LocalGPTAssistant
+
+assistant = LocalGPTAssistant()
+answer = assistant.generate("Как изменить IP в Astra Linux?")
+print(answer)
+```
+
+### Планировщик задач
+Модуль `scheduler.TaskScheduler` позволяет планировать запуск команд во времени.
+Задания хранятся в `db/tasks.db` и автоматически выполняются в фоновом потоке.
+Пример добавления задачи:
+
+```python
+from datetime import datetime, timedelta
+from scheduler import TaskScheduler
+
+sched = TaskScheduler(poll_interval=30)
+sched.start()
+sched.add_task("echo Hello", datetime.now() + timedelta(minutes=1))
+```
+
+## Сборка дистрибутива
+
+### Windows
+
+```bat
+packaging\windows\build_windows.bat
+packaging\windows\package_windows.bat
+```
+Результат появится в `SysAdminAssistant-win.zip`.
+
+### Debian / AppImage
+
+```bash
+./packaging/linux/debian/build_deb.sh
+./packaging/linux/appimage/build_appimage.sh
+```
+После выполнения будут созданы `.deb` и `.AppImage` в каталоге `packaging/linux/`.
+
+## Установка собранного приложения
+
+### Windows
+
+1. Запустите `packaging\windows\build_windows.bat` и затем `packaging\windows\package_windows.bat`.
+2. В каталоге `dist` появится папка `SysAdminAssistant-win`, а также архив `SysAdminAssistant-win.zip`.
+3. Распакуйте архив в удобное место и запустите `SysAdminAssistant.exe`.
+
+### Astra Linux / Debian
+
+1. С помощью `./packaging/linux/debian/build_deb.sh` соберите пакет `sysadmin-assistant_1.0.0_amd64.deb`.
+2. Установите пакет командой:
+   ```bash
+   sudo dpkg -i sysadmin-assistant_1.0.0_amd64.deb
+   ```
+3. После установки запустите приложение через меню или командой `sysadmin-assistant`.
+
+## Возможности ChatOps
+Во вкладке **ChatOps** можно общаться с локальной моделью GPT-Neo без подключения к интернету. Модель загружается из каталога `models/gpt-neo-125M` при первом использовании.
+
+## Планировщик
+На странице "Команды" после выбора команды доступна кнопка **"Запланировать"**. Укажите число минут до запуска, и задача будет сохранена в `db/tasks.db` и выполнена автоматически фоновым планировщиком.
+
+### Портативный AppImage
+
+1. Выполните `./packaging/linux/appimage/build_appimage.sh`.
+2. Полученный файл `SysAdminAssistant-1.0.0.AppImage` сделайте исполняемым и запустите:
+   ```bash
+   chmod +x SysAdminAssistant-1.0.0.AppImage
+   ./SysAdminAssistant-1.0.0.AppImage
+   ```
