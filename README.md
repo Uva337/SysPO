@@ -8,20 +8,20 @@
 
 
 .
-├── app_new_ui.py             # Главный файл приложения с UI
-├── sysadmin_actions.py       # Логика выполнения команд
-├── auth_rbac.py              # Аутентификация и контроль доступа
-├── command_templates.py      # Управление шаблонами команд
-├── logging_audit.py          # Система логирования и аудита
-├── macro_engine.py           # Движок для макросов
-├── plugin_api.py             # API для плагинов
-├── router.py                 # Маршрутизатор интентов
-├── utils.py                  # NLU-парсер и утилиты
-├── commands.json             # Определения команд и фраз
-├── requirements.txt          # Список зависимостей для установки
-└── db/                       # Папка для баз данных (создается автоматически)
-├── auth.db
-└── audit.db
+app_new_ui.py             # Главный файл приложения с UI
+sysadmin_actions.py       # Логика выполнения команд
+auth_rbac.py              # Аутентификация и контроль доступа
+command_templates.py      # Управление шаблонами команд
+logging_audit.py          # Система логирования и аудита
+macro_engine.py           # Движок для макросов
+plugin_api.py             # API для плагинов
+router.py                 # Маршрутизатор интентов
+utils.py                  # NLU-парсер и утилиты
+commands.json             # Определения команд и фраз
+requirements.txt          # Список зависимостей для установки
+db/                       # Папка для баз данных (создается автоматически)
+auth.db
+audit.db
 
 
 ## Установка и запуск
